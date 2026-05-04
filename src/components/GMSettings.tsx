@@ -20,10 +20,37 @@ const GMSettings: React.FC<Props> = ({ state, onUpdate }) => {
   const [editValue, setEditValue] = useState("");
   const [newSeg, setNewSeg] = useState("");
   const [winProb, setWinProb] = useState(state.slotConfig.winProbability);
+  const [manualProb, setManualProb] = useState(String(state.slotConfig.winProbability));
   const [saved, setSaved] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState("");
   const [bulkError, setBulkError] = useState("");
+
+  const setProbValue = (val: number) => {
+    const clamped = Math.min(100, Math.max(0, val));
+    setWinProb(clamped);
+    setManualProb(String(clamped));
+  };
+
+  const handleManualProbChange = (text: string) => {
+    setManualProb(text);
+    const num = parseFloat(text);
+    if (!isNaN(num)) {
+      const clamped = Math.min(100, Math.max(0, num));
+      setWinProb(clamped);
+    }
+  };
+
+  const handleManualProbBlur = () => {
+    const num = parseFloat(manualProb);
+    if (isNaN(num)) {
+      setManualProb(String(winProb));
+    } else {
+      const clamped = Math.min(100, Math.max(0, num));
+      setWinProb(clamped);
+      setManualProb(String(clamped));
+    }
+  };
 
   const addSegment = () => {
     const t = newSeg.trim();
@@ -73,9 +100,10 @@ const GMSettings: React.FC<Props> = ({ state, onUpdate }) => {
 
   const handleSave = () => {
     if (segments.length < 2) return;
+    const finalProb = Math.min(100, Math.max(0, winProb));
     onUpdate({
       rouletteConfig: { segments: [...segments] },
-      slotConfig: { winProbability: Math.max(0, Math.min(100, winProb)) },
+      slotConfig: { winProbability: finalProb },
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -85,7 +113,7 @@ const GMSettings: React.FC<Props> = ({ state, onUpdate }) => {
     <div className="gm-settings">
       <div className="settings-title">⚙️ Configurações do GM</div>
 
-      {/* ── ROULETTE ── */}
+      {/* ROULETTE */}
       <div className="settings-card">
         <div className="card-title">🎡 Roleta — Segmentos</div>
         <div className="card-sub">Mín 2 · Máx 20 · Clique no nome para editar</div>
@@ -170,34 +198,57 @@ const GMSettings: React.FC<Props> = ({ state, onUpdate }) => {
         )}
       </div>
 
-      {/* ── SLOT ── */}
+      {/* SLOT */}
       <div className="settings-card">
         <div className="card-title">🎰 Caça-Níquel — Probabilidade de Vitória</div>
-        <div className="card-sub">Invisível para jogadores. Apenas o GM vê o indicador na tela do jogo.</div>
+        <div className="card-sub">
+          De 0% (impossível ganhar) até 100% (sempre ganha). Invisível para jogadores.
+        </div>
 
         <div className="prob-row">
           <input
-            type="range" min={0} max={100} value={winProb}
-            onChange={(e) => setWinProb(Number(e.target.value))}
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={winProb}
+            onChange={(e) => setProbValue(Number(e.target.value))}
             className="prob-range"
           />
-          <div className="prob-badge">{winProb}%</div>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={manualProb}
+            onChange={(e) => handleManualProbChange(e.target.value)}
+            onBlur={handleManualProbBlur}
+            className="prob-input"
+          />
+          <span className="prob-percent">%</span>
+        </div>
+
+        <div className="prob-labels">
+          <span>0% = Nunca</span>
+          <span>100% = Sempre</span>
         </div>
 
         <div className="presets">
           {[
+            { label: "Impossível", val: 0 },
             { label: "Raro", val: 5 },
             { label: "Difícil", val: 15 },
             { label: "Normal", val: 30 },
             { label: "Fácil", val: 50 },
-            { label: "Generoso", val: 80 },
+            { label: "Generoso", val: 75 },
+            { label: "Garantido", val: 100 },
           ].map((p) => (
             <button
               key={p.val}
               className={`preset ${winProb === p.val ? "preset-active" : ""}`}
-              onClick={() => setWinProb(p.val)}
+              onClick={() => setProbValue(p.val)}
             >
-              {p.label} {p.val}%
+              {p.label} ({p.val}%)
             </button>
           ))}
         </div>
@@ -205,15 +256,17 @@ const GMSettings: React.FC<Props> = ({ state, onUpdate }) => {
         <div className="limitations">
           <div className="lim-title">⚠️ Limitações do Caça-Níquel</div>
           <ul>
-            <li>A probabilidade é avaliada a cada jogada independentemente (não há garantia de distribuição exata).</li>
-            <li>O resultado é calculado ANTES da animação. A animação é apenas visual.</li>
-            <li>Vitória = 3 símbolos idênticos. Sem paylines parciais ou combinações especiais.</li>
-            <li>Configurações ficam salvas nos metadados da sala e persistem entre sessões.</li>
+            <li><strong>0%</strong> = Nunca dará jackpot, não importa quantas vezes jogue.</li>
+            <li><strong>100%</strong> = Sempre dará jackpot em toda jogada.</li>
+            <li>A probabilidade é avaliada a cada jogada independentemente.</li>
+            <li>O resultado é calculado ANTES da animação.</li>
+            <li>Vitória = 3 símbolos idênticos. Sem paylines parciais.</li>
+            <li>Configurações persistem nos metadados da sala.</li>
           </ul>
         </div>
       </div>
 
-      {/* ── SAVE ── */}
+      {/* SAVE */}
       <button className="btn-primary save-btn" onClick={handleSave}>
         {saved ? "✓ Salvo e sincronizado!" : "💾 Salvar Configurações"}
       </button>

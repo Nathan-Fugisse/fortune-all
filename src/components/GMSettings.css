@@ -35,7 +35,6 @@
   margin-top: -6px;
 }
 
-/* Segment list */
 .seg-list {
   display: flex;
   flex-direction: column;
@@ -116,7 +115,6 @@
 .sbt.del:hover:not(:disabled) { background: rgba(231,76,60,0.3); color: #e74c3c; }
 .sbt.ok:hover:not(:disabled) { background: rgba(46,204,113,0.3); color: #2ecc71; }
 
-/* Add row */
 .add-row {
   display: flex;
   gap: 8px;
@@ -153,7 +151,6 @@
 .add-btn:hover:not(:disabled) { background: #c0392b; }
 .add-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* Bulk */
 .bulk-row {
   display: flex;
   align-items: center;
@@ -201,11 +198,11 @@
 .bulk-ta:focus { border-color: var(--accent); }
 .bulk-err { font-size: 11px; color: #e74c3c; }
 
-/* Probability */
+/* PROBABILITY */
 .prob-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .prob-range {
@@ -214,37 +211,68 @@
   appearance: none;
   height: 8px;
   border-radius: 4px;
-  background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71);
+  background: linear-gradient(90deg, #e74c3c 0%, #f39c12 50%, #2ecc71 100%);
   outline: none;
 }
 
 .prob-range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: white;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  border: 2px solid var(--accent);
+  border: 3px solid var(--accent);
 }
 
 .prob-range::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: white;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  border: 2px solid var(--accent);
+  border: 3px solid var(--accent);
 }
 
-.prob-badge {
-  font-size: 26px;
+.prob-input {
+  width: 60px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: var(--accent2);
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.prob-input::-webkit-inner-spin-button,
+.prob-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.prob-input:focus {
+  border-color: var(--accent);
+}
+
+.prob-percent {
+  font-size: 18px;
   font-weight: bold;
   color: var(--accent2);
-  min-width: 56px;
-  text-align: center;
+}
+
+.prob-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  margin-top: -4px;
 }
 
 .presets {
@@ -293,7 +321,6 @@
   margin-bottom: 3px;
 }
 
-/* Save */
 .save-btn {
   width: 100%;
 }
