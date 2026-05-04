@@ -8,10 +8,8 @@
   "action": {
     "title": "Fortune All",
     "icon": "/icon.svg",
-    "popover": {
-      "url": "/index.html",
-      "height": 620,
-      "width": 500
-    }
+    "popover": "/index.html",
+    "height": 620,
+    "width": 500
   }
 }
