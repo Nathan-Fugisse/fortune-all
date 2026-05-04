@@ -1,0 +1,110 @@
+.coin-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.coin-scene {
+  perspective: 900px;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coin-3d {
+  width: 160px;
+  height: 160px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease;
+}
+
+.coin-3d.coin-show-tails {
+  transform: rotateY(180deg);
+}
+
+.coin-3d.coin-anim-flip {
+  animation: flipCoin 0.22s linear infinite;
+}
+
+.coin-3d.coin-anim-land {
+  animation: landCoin 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes flipCoin {
+  0% { transform: rotateY(0deg) rotateX(5deg); }
+  50% { transform: rotateY(180deg) rotateX(-5deg); }
+  100% { transform: rotateY(360deg) rotateX(5deg); }
+}
+
+@keyframes landCoin {
+  0% { transform: rotateY(0deg) scale(1.15); }
+  40% { transform: rotateY(0deg) scale(0.9); }
+  70% { transform: rotateY(0deg) scale(1.05); }
+  100% { transform: rotateY(0deg) scale(1); }
+}
+
+.coin-side {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.15);
+}
+
+.coin-heads-side {
+  background: radial-gradient(circle at 35% 35%, #f7dc6f, #f39c12, #d68910);
+  border: 5px solid #b7950b;
+}
+
+.coin-tails-side {
+  background: radial-gradient(circle at 35% 35%, #d5d8dc, #aab7b8, #808b96);
+  border: 5px solid #717d7e;
+  transform: rotateY(180deg);
+}
+
+.coin-emoji {
+  font-size: 60px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  line-height: 1;
+}
+
+.coin-word {
+  font-size: 13px;
+  font-weight: bold;
+  color: rgba(0,0,0,0.55);
+  letter-spacing: 3px;
+}
+
+.flip-btn {
+  width: 100%;
+  max-width: 280px;
+}
+
+.coin-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0.45;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legend-row span:first-child {
+  font-size: 20px;
+}

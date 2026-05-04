@@ -1,0 +1,24 @@
+.roulette-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.roulette-wheel-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.roulette-canvas {
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 24px rgba(233, 69, 96, 0.35));
+  border-radius: 50%;
+}
+
+.spin-btn {
+  width: 100%;
+  max-width: 280px;
+}

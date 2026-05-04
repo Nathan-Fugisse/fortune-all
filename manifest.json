@@ -1,0 +1,14 @@
+{
+  "name": "Fortune All",
+  "version": "1.0.0",
+  "description": "3 minigames de sorte: Roleta, Caça-Níquel e Cara ou Coroa.",
+  "author": "Fortune All",
+  "icon": "/icon.svg",
+  "action": {
+    "title": "Fortune All",
+    "icon": "/icon.svg",
+    "popover": "/index.html",
+    "height": 620,
+    "width": 500
+  }
+}
