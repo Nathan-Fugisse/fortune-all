@@ -24,27 +24,35 @@ interface Props {
 
 const SlotMachine: React.FC<Props> = ({ config, result, playerName, isGM, onSpin }) => {
   const [spinning, setSpinning] = useState(false);
-  const [visibleSymbols, setVisibleSymbols] = useState<string[]>(["🍒", "🍋", "🍊"]);
-  const [reelSpinning, setReelSpinning] = useState([false, false, false]);
+  const [reel0, setReel0] = useState("🍒");
+  const [reel1, setReel1] = useState("🍋");
+  const [reel2, setReel2] = useState("🍊");
+  const [reel0Spinning, setReel0Spinning] = useState(false);
+  const [reel1Spinning, setReel1Spinning] = useState(false);
+  const [reel2Spinning, setReel2Spinning] = useState(false);
   const [displayResult, setDisplayResult] = useState<SlotResult | null>(null);
   const [showWinFlash, setShowWinFlash] = useState(false);
   const lastSpinId = useRef<string>("");
   const timersRef = useRef<number[]>([]);
+  const intervalsRef = useRef<number[]>([]);
 
-  const clearAllTimers = () => {
+  const clearAll = () => {
     timersRef.current.forEach(clearTimeout);
+    intervalsRef.current.forEach(clearInterval);
     timersRef.current = [];
+    intervalsRef.current = [];
   };
 
   const determineOutcome = useCallback((): { reels: number[]; isWin: boolean } => {
     const isWin = Math.random() * 100 < config.winProbability;
     if (isWin) {
-      const sym = Math.floor(Math.random() * SLOT_SYMBOLS.length);
-      return { reels: [sym, sym, sym], isWin: true };
+      const s = Math.floor(Math.random() * SLOT_SYMBOLS.length);
+      return { reels: [s, s, s], isWin: true };
     }
     let r0 = Math.floor(Math.random() * SLOT_SYMBOLS.length);
     let r1 = Math.floor(Math.random() * SLOT_SYMBOLS.length);
     let r2 = Math.floor(Math.random() * SLOT_SYMBOLS.length);
+    // Guarantee NOT all same
     while (r0 === r1 && r1 === r2) {
       r2 = (r2 + 1) % SLOT_SYMBOLS.length;
     }
@@ -57,59 +65,71 @@ const SlotMachine: React.FC<Props> = ({ config, result, playerName, isGM, onSpin
       setSpinning(true);
       setDisplayResult(null);
       setShowWinFlash(false);
-      setReelSpinning([true, true, true]);
-      clearAllTimers();
+      setReel0Spinning(true);
+      setReel1Spinning(true);
+      setReel2Spinning(true);
+      clearAll();
 
-      // Rapid symbol cycling during spin
-      let cycleCount = 0;
-      const cycleInterval = 80;
-      const cycleDuration = [2000, 2600, 3200];
+      const setters = [setReel0, setReel1, setReel2];
+      const setSpinners = [setReel0Spinning, setReel1Spinning, setReel2Spinning];
 
-      const cycleTimer = window.setInterval(() => {
-        cycleCount++;
-        setVisibleSymbols([
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-        ]);
-        playSlotTickSound();
-      }, cycleInterval);
+      // Rapid cycling for each reel
+      const intervals: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const iv = window.setInterval(() => {
+          const randSym = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+          setters[i](randSym);
+          playSlotTickSound();
+        }, 80 + i * 10);
+        intervals.push(iv);
+        intervalsRef.current.push(iv);
+      }
 
-      timersRef.current.push(cycleTimer as unknown as number);
+      // Stop reel 0 at 1.5s
+      const t0 = window.setTimeout(() => {
+        clearInterval(intervals[0]);
+        setters[0](SLOT_SYMBOLS[targetReels[0]]);
+        setSpinners[0](false);
+      }, 1500);
+      timersRef.current.push(t0);
 
-      // Stop each reel at different times
-      [0, 1, 2].forEach((reelIdx) => {
-        const t = window.setTimeout(() => {
-          setReelSpinning((prev) => {
-            const next = [...prev];
-            next[reelIdx] = false;
-            return next;
-          });
-          setVisibleSymbols((prev) => {
-            const next = [...prev];
-            next[reelIdx] = SLOT_SYMBOLS[targetReels[reelIdx]];
-            return next;
-          });
+      // Stop reel 1 at 2.3s
+      const t1 = window.setTimeout(() => {
+        clearInterval(intervals[1]);
+        setters[1](SLOT_SYMBOLS[targetReels[1]]);
+        setSpinners[1](false);
+      }, 2300);
+      timersRef.current.push(t1);
 
-          if (reelIdx === 2) {
-            clearInterval(cycleTimer);
-            setSpinning(false);
-            const finalResult = { reels: targetReels, isWin, spinId: "", spinnerName };
-            setDisplayResult(finalResult);
-            if (isWin) {
-              setShowWinFlash(true);
-              playWinSound();
-              const flashTimer = window.setTimeout(() => setShowWinFlash(false), 2500);
-              timersRef.current.push(flashTimer);
-            }
-          }
-        }, cycleDuration[reelIdx]);
-        timersRef.current.push(t);
-      });
+      // Stop reel 2 at 3.0s
+      const t2 = window.setTimeout(() => {
+        clearInterval(intervals[2]);
+        setters[2](SLOT_SYMBOLS[targetReels[2]]);
+        setSpinners[2](false);
+
+        // All stopped — show result
+        setSpinning(false);
+        const finalResult: SlotResult = {
+          reels: targetReels,
+          isWin,
+          spinId: "",
+          spinnerName,
+        };
+        setDisplayResult(finalResult);
+
+        if (isWin) {
+          setShowWinFlash(true);
+          playWinSound();
+          const flashOff = window.setTimeout(() => setShowWinFlash(false), 2500);
+          timersRef.current.push(flashOff);
+        }
+      }, 3000);
+      timersRef.current.push(t2);
     },
     [spinning]
   );
 
+  // Sync from other players
   useEffect(() => {
     if (!result) return;
     if (result.spinId === lastSpinId.current) return;
@@ -139,13 +159,21 @@ const SlotMachine: React.FC<Props> = ({ config, result, playerName, isGM, onSpin
         </div>
 
         <div className="slot-display">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="reel-window">
-              <div className={`reel-inner ${reelSpinning[i] ? "reel-spinning" : ""}`}>
-                <span className="reel-symbol">{visibleSymbols[i]}</span>
-              </div>
+          <div className="reel-window">
+            <div className={`reel-inner ${reel0Spinning ? "reel-spinning" : ""}`}>
+              <span className="reel-symbol">{reel0}</span>
             </div>
-          ))}
+          </div>
+          <div className="reel-window">
+            <div className={`reel-inner ${reel1Spinning ? "reel-spinning" : ""}`}>
+              <span className="reel-symbol">{reel1}</span>
+            </div>
+          </div>
+          <div className="reel-window">
+            <div className={`reel-inner ${reel2Spinning ? "reel-spinning" : ""}`}>
+              <span className="reel-symbol">{reel2}</span>
+            </div>
+          </div>
         </div>
 
         {isGM && (
@@ -166,7 +194,9 @@ const SlotMachine: React.FC<Props> = ({ config, result, playerName, isGM, onSpin
             {displayResult.isWin ? "🎉 JACKPOT! 🎉" : "Tente novamente!"}
           </div>
           <div className="result-symbols">
-            {displayResult.reels.map((r) => SLOT_SYMBOLS[r]).join("  ")}
+            {SLOT_SYMBOLS[displayResult.reels[0]]}{" "}
+            {SLOT_SYMBOLS[displayResult.reels[1]]}{" "}
+            {SLOT_SYMBOLS[displayResult.reels[2]]}
           </div>
           <div className="result-player">Jogado por {displayResult.spinnerName}</div>
         </div>

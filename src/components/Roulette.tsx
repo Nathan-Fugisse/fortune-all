@@ -27,13 +27,14 @@ const Roulette: React.FC<Props> = ({ config, result, playerName, onSpin }) => {
   const [displayPlayer, setDisplayPlayer] = useState<string>("");
   const animRef = useRef<number>(0);
   const lastSpinId = useRef<string>("");
-  const currentAngleRef = useRef<number>(0);
+  const angleRef = useRef<number>(0);
 
   const segments = config.segments;
-  const segmentAngle = (2 * Math.PI) / segments.length;
+  const count = segments.length;
+  const segAngle = (2 * Math.PI) / count;
 
   const drawWheel = useCallback(
-    (angle: number) => {
+    (rotation: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
@@ -42,24 +43,24 @@ const Roulette: React.FC<Props> = ({ config, result, playerName, onSpin }) => {
       const size = canvas.width;
       const cx = size / 2;
       const cy = size / 2;
-      const radius = cx - 12;
+      const r = cx - 12;
 
       ctx.clearRect(0, 0, size, size);
 
-      // Outer ring shadow
+      // Shadow
       ctx.beginPath();
-      ctx.arc(cx, cy, radius + 4, 0, 2 * Math.PI);
+      ctx.arc(cx, cy, r + 4, 0, 2 * Math.PI);
       ctx.fillStyle = "rgba(0,0,0,0.4)";
       ctx.fill();
 
-      // Draw each segment
-      segments.forEach((seg, i) => {
-        const startAngle = angle + i * segmentAngle;
-        const endAngle = startAngle + segmentAngle;
+      // Segments
+      for (let i = 0; i < count; i++) {
+        const a1 = rotation + i * segAngle;
+        const a2 = a1 + segAngle;
 
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, radius, startAngle, endAngle);
+        ctx.arc(cx, cy, r, a1, a2);
         ctx.closePath();
         ctx.fillStyle = getSegmentColor(i);
         ctx.fill();
@@ -70,27 +71,27 @@ const Roulette: React.FC<Props> = ({ config, result, playerName, onSpin }) => {
         // Label
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(startAngle + segmentAngle / 2);
+        ctx.rotate(a1 + segAngle / 2);
         ctx.textAlign = "right";
-        ctx.fillStyle = "#ffffff";
-        const fontSize = Math.max(9, Math.min(13, 160 / segments.length));
-        ctx.font = `bold ${fontSize}px Segoe UI, sans-serif`;
+        ctx.fillStyle = "#fff";
+        const fs = Math.max(9, Math.min(13, 160 / count));
+        ctx.font = `bold ${fs}px Segoe UI, sans-serif`;
         ctx.shadowColor = "rgba(0,0,0,0.8)";
         ctx.shadowBlur = 4;
-        const maxLen = Math.floor(220 / segments.length) + 6;
-        const label = seg.length > maxLen ? seg.slice(0, maxLen - 1) + "…" : seg;
-        ctx.fillText(label, radius - 14, fontSize / 3);
+        const maxL = Math.floor(220 / count) + 6;
+        const txt = segments[i].length > maxL ? segments[i].slice(0, maxL - 1) + "…" : segments[i];
+        ctx.fillText(txt, r - 14, fs / 3);
         ctx.restore();
-      });
+      }
 
-      // Outer border
+      // Border
       ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+      ctx.arc(cx, cy, r, 0, 2 * Math.PI);
       ctx.strokeStyle = "rgba(255,255,255,0.2)";
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Center circle
+      // Center
       const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 24);
       grad.addColorStop(0, "#f39c12");
       grad.addColorStop(1, "#e74c3c");
@@ -102,13 +103,11 @@ const Roulette: React.FC<Props> = ({ config, result, playerName, onSpin }) => {
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Pointer (top center, pointing down)
-      const pw = 14;
-      const ph = 28;
+      // Pointer at top
       ctx.beginPath();
-      ctx.moveTo(cx - pw, 2);
-      ctx.lineTo(cx + pw, 2);
-      ctx.lineTo(cx, ph + 2);
+      ctx.moveTo(cx - 14, 2);
+      ctx.lineTo(cx + 14, 2);
+      ctx.lineTo(cx, 30);
       ctx.closePath();
       ctx.fillStyle = "#e74c3c";
       ctx.fill();
@@ -116,65 +115,92 @@ const Roulette: React.FC<Props> = ({ config, result, playerName, onSpin }) => {
       ctx.lineWidth = 2;
       ctx.stroke();
     },
-    [segments, segmentAngle]
+    [segments, count, segAngle]
   );
 
+  // Draw on mount / config change
   useEffect(() => {
-    drawWheel(currentAngleRef.current);
+    drawWheel(angleRef.current);
   }, [drawWheel]);
+
+  const getWinnerFromAngle = useCallback(
+    (rotation: number): number => {
+      // Pointer is at top = -PI/2 from east
+      // Normalize rotation to 0..2PI
+      const norm = ((rotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      // The angle at the pointer (top) in wheel space
+      const pointerAngle = ((2 * Math.PI - norm + (3 * Math.PI) / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+      const idx = Math.floor(pointerAngle / segAngle) % count;
+      return idx;
+    },
+    [segAngle, count]
+  );
 
   const runAnimation = useCallback(
     (winnerIndex: number, spinnerName: string) => {
+      if (spinning) return;
       setSpinning(true);
       setDisplayResult(null);
 
-      const startAngle = currentAngleRef.current;
-      const fullSpins = 6 + Math.random() * 4;
+      // Calculate the exact final angle that lands on winnerIndex
+      // We want the CENTER of the winner segment under the top pointer
+      // Pointer = -PI/2 from east = 3PI/2
+      // For segment i, its center in wheel coords = i * segAngle + segAngle/2
+      // After rotation R, segment center appears at R + i*segAngle + segAngle/2
+      // We want: R + winnerIndex*segAngle + segAngle/2 = 3PI/2 (mod 2PI)
+      // So: R = 3PI/2 - winnerIndex*segAngle - segAngle/2
 
-      // We want the middle of winnerIndex segment to stop at the top pointer.
-      // Pointer is at top = angle 3π/2 from east (standard canvas coords).
-      // The segment middle in wheel coords = winnerIndex * segmentAngle + segmentAngle/2
-      // After rotation by `finalAngle`, the segment middle is at:
-      //   finalAngle + winnerIndex * segmentAngle + segmentAngle/2 = 3π/2 (mod 2π)
-      // So: finalAngle = 3π/2 - (winnerIndex * segmentAngle + segmentAngle/2)
-      // Then add full spins.
-      const segMiddle = winnerIndex * segmentAngle + segmentAngle / 2;
-      const targetBase = (3 * Math.PI) / 2 - segMiddle;
-      const currentMod = ((startAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-      const targetMod = ((targetBase % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-      const diff = ((targetMod - currentMod) + 2 * Math.PI) % (2 * Math.PI);
-      const totalSpin = fullSpins * 2 * Math.PI + diff;
+      const targetRotation =
+        (3 * Math.PI) / 2 - winnerIndex * segAngle - segAngle / 2;
+
+      // Normalize to positive
+      const targetNorm = ((targetRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+      // Add full spins (always spin forward)
+      const fullSpins = (6 + Math.floor(Math.random() * 4)) * 2 * Math.PI;
+
+      // Small random offset within segment (so it doesn't always land dead center)
+      const jitter = (Math.random() - 0.5) * segAngle * 0.6;
+
+      const startAngle = angleRef.current;
+      const startNorm = ((startAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+      // How much to rotate from current position
+      let delta = targetNorm + jitter - startNorm;
+      if (delta <= 0) delta += 2 * Math.PI;
+      const totalSpin = fullSpins + delta;
+
       const finalAngle = startAngle + totalSpin;
-
       const duration = 4500 + Math.random() * 1000;
-      const start = performance.now();
+      const tStart = performance.now();
       let lastSeg = -1;
 
       const animate = (now: number) => {
-        const elapsed = now - start;
+        const elapsed = now - tStart;
         const t = Math.min(elapsed / duration, 1);
-        // Ease out cubic
         const eased = 1 - Math.pow(1 - t, 3);
         const angle = startAngle + totalSpin * eased;
-        currentAngleRef.current = angle;
+
+        angleRef.current = angle;
         drawWheel(angle);
 
-        // Tick sound
-        const norm = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-        const atPointer = (((3 * Math.PI) / 2 - norm) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-        const seg = Math.floor(atPointer / segmentAngle) % segments.length;
-        if (seg !== lastSeg) {
-          lastSeg = seg;
-          if (t < 0.92) playTickSound();
+        // Tick
+        const curSeg = getWinnerFromAngle(angle);
+        if (curSeg !== lastSeg) {
+          lastSeg = curSeg;
+          if (t < 0.9) playTickSound();
         }
 
         if (t < 1) {
           animRef.current = requestAnimationFrame(animate);
         } else {
-          currentAngleRef.current = finalAngle;
+          angleRef.current = finalAngle;
           drawWheel(finalAngle);
+
+          // Verify the winner
+          const landed = getWinnerFromAngle(finalAngle);
           setSpinning(false);
-          setDisplayResult(segments[winnerIndex]);
+          setDisplayResult(segments[landed]);
           setDisplayPlayer(spinnerName);
           playWinSound();
         }
@@ -183,10 +209,10 @@ const Roulette: React.FC<Props> = ({ config, result, playerName, onSpin }) => {
       cancelAnimationFrame(animRef.current);
       animRef.current = requestAnimationFrame(animate);
     },
-    [drawWheel, segments, segmentAngle]
+    [spinning, drawWheel, segments, segAngle, count, getWinnerFromAngle]
   );
 
-  // React to synced results from other players
+  // React to synced results
   useEffect(() => {
     if (!result) return;
     if (result.spinId === lastSpinId.current) return;
@@ -196,7 +222,7 @@ const Roulette: React.FC<Props> = ({ config, result, playerName, onSpin }) => {
 
   const handleSpin = () => {
     if (spinning) return;
-    const winnerIndex = Math.floor(Math.random() * segments.length);
+    const winnerIndex = Math.floor(Math.random() * count);
     const spinId = Date.now().toString(36) + Math.random().toString(36).slice(2);
     lastSpinId.current = spinId;
     onSpin({ winnerIndex, spinId, spinnerName: playerName });
